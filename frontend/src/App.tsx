@@ -1,5 +1,5 @@
-import { useState } from "react"
-import { ArrowUpDown, Eye, EyeOff } from "lucide-react"
+import { useState } from "react";
+import { ArrowUpDown, Eye, EyeOff, MoreVertical } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -7,42 +7,68 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table"
+} from "@/components/ui/table";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface SupportedModel {
-  model_name: string
+  model_name: string;
 }
 
-const API_BASE = import.meta.env.VITE_API_URL ?? ""
+const API_BASE = import.meta.env.VITE_API_URL ?? "";
 
 export function App() {
-  const [apiKey, setApiKey] = useState("")
-  const [savedKey, setSavedKey] = useState("")
-  const [models, setModels] = useState<SupportedModel[]>([])
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [sortAsc, setSortAsc] = useState(true)
-  const [showKey, setShowKey] = useState(false)
+  const [apiKey, setApiKey] = useState("");
+  const [models, setModels] = useState<SupportedModel[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [sortAsc, setSortAsc] = useState(true);
+  const [showKey, setShowKey] = useState(false);
+  const [creating, setCreating] = useState(false);
 
   const fetchModels = () => {
-    setLoading(true)
-    setError(null)
+    setLoading(true);
+    setError(null);
     fetch(`${API_BASE}/api/supported-models`, {
-      headers: { "X-API-Key": savedKey },
+      headers: { "X-API-Key": apiKey },
     })
       .then((res) => {
-        if (!res.ok) throw new Error("Failed to fetch models")
-        return res.json()
+        if (!res.ok) throw new Error("Failed to fetch models");
+        return res.json();
       })
       .then((data) => setModels(data))
       .catch((err) => setError(err.message))
-      .finally(() => setLoading(false))
-  }
+      .finally(() => setLoading(false));
+  };
+
+  const createTrainingClient = (baseModel: string) => {
+    setCreating(true);
+    setError(null);
+    fetch(`${API_BASE}/api/training-clients`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-API-Key": apiKey,
+      },
+      body: JSON.stringify({ base_model: baseModel }),
+    })
+      .then((res) => {
+        if (!res.ok) throw new Error("Failed to create training client");
+        return res.json();
+      })
+      .then(() => alert(`Training client created for ${baseModel}`))
+      .catch((err) => setError(err.message))
+      .finally(() => setCreating(false));
+  };
 
   const sortedModels = [...models].sort((a, b) => {
-    const cmp = a.model_name.localeCompare(b.model_name)
-    return sortAsc ? cmp : -cmp
-  })
+    const cmp = a.model_name.localeCompare(b.model_name);
+    return sortAsc ? cmp : -cmp;
+  });
 
   return (
     <div className="max-w-2xl mx-auto py-10 px-4">
@@ -67,20 +93,17 @@ export function App() {
               onClick={() => setShowKey(!showKey)}
               className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
             >
-              {showKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              {showKey ? (
+                <EyeOff className="h-4 w-4" />
+              ) : (
+                <Eye className="h-4 w-4" />
+              )}
             </button>
           </div>
-          <button
-            onClick={() => setSavedKey(apiKey)}
-            disabled={!apiKey}
-            className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
-          >
-            Save
-          </button>
         </div>
         <button
           onClick={fetchModels}
-          disabled={!savedKey || loading}
+          disabled={!apiKey || loading}
           className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
         >
           {loading ? "Loading..." : "Get Supported Models"}
@@ -103,12 +126,30 @@ export function App() {
                     <ArrowUpDown className="h-4 w-4" />
                   </span>
                 </TableHead>
+                <TableHead className="w-12" />
               </TableRow>
             </TableHeader>
             <TableBody>
               {sortedModels.map((model) => (
                 <TableRow key={model.model_name}>
                   <TableCell>{model.model_name}</TableCell>
+                  <TableCell>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button className="p-1 rounded-md hover:bg-muted">
+                          <MoreVertical className="h-4 w-4" />
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem
+                          disabled={creating}
+                          onClick={() => createTrainingClient(model.model_name)}
+                        >
+                          Create Training Client
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -116,7 +157,7 @@ export function App() {
         </>
       )}
     </div>
-  )
+  );
 }
 
-export default App
+export default App;
